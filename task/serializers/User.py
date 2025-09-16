@@ -44,11 +44,20 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = ('first_name', 'last_name', 'patronymic', 'email', 'role', 'password')
 
+    password = serializers.CharField(required=False)
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError('This email is already in use.')
+        return value
+
     def update(self, instance, validated_data):
-        password = validated_data.pop('password')
+        if 'password' in validated_data:
+            instance.set_password(validated_data.pop('password'))
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        instance.set_password(password)
+        if 'email' in validated_data:
+            instance.username = validated_data.pop('email')
         instance.save()
         return instance
 
@@ -56,6 +65,17 @@ class UserRoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('role')
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+
+class UserInfoUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('first_name', 'last_name', 'patronymic', 'email')
 
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():
