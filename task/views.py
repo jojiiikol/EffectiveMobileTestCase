@@ -12,8 +12,10 @@ from task.serializers.permission import PermissionCreateSerializer, PermissionRe
 from task.serializers.resource import ResourceSerializer, CreateResourceSerializer
 from task.serializers.User import UserViewSerializer, UserCreateSerializer, UserUpdateSerializer, \
     UserInfoUpdateSerializer
+from task.permissions import Permission as permission_logic
 
-
+# TODO: Настроить до конца систему permission, протестировать ее
+# TODO: Разобраться что делать с AnonimysUser
 # Create your views here.
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -67,6 +69,7 @@ class UserViewSet(viewsets.ModelViewSet):
 class ResourceViewSet(viewsets.ModelViewSet):
     queryset = Resource.objects.all()
     serializer_class = ResourceSerializer
+    permission_classes = [permission_logic]
 
     def create(self, request, *args, **kwargs):
         self.serializer_class = CreateResourceSerializer
