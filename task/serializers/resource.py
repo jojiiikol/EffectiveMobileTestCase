@@ -22,7 +22,7 @@ class CreateResourceSerializer(serializers.ModelSerializer):
         fields = ('name', 'description')
 
     name = serializers.CharField(required=True)
-    description = serializers.CharField(required=True)
+    description = serializers.CharField(required=False)
 
     def create(self, validated_data):
         resource = Resource(**validated_data)

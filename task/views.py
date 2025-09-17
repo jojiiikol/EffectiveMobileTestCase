@@ -25,6 +25,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
+    @extend_schema(request=UserCreateSerializer, responses=UserViewSerializer)
     def create(self, request, *args, **kwargs):
         self.serializer_class = UserCreateSerializer
         return super().create(request, *args, **kwargs)
