@@ -14,6 +14,8 @@ class ResourceSerializer(serializers.ModelSerializer):
     description = serializers.CharField(read_only=True)
     owner = UserViewSerializer(read_only=True)
 
+
+
 class CreateResourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resource
