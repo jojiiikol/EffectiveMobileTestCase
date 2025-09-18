@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from task.models import Permission, Role
+from task.models import Permission, Role, Resource
 from task.serializers.resource import ResourceSerializer
 from task.serializers.role import RoleSerializer
 
@@ -13,6 +13,21 @@ class PermissionResourceSerializer(serializers.ModelSerializer):
     role = RoleSerializer(read_only=True)
     resource = ResourceSerializer(read_only=True)
 
+
+class PermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = ('id', 'role', 'read_access', 'update_access', 'delete_access')
+
+    role = RoleSerializer(read_only=True)
+
+
+class ResourcePermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Resource
+        fields = ('id', 'name', 'description', 'permissions_resource')
+
+    permissions_resource = PermissionSerializer(read_only=True, many=True)
 
 class PermissionCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -31,6 +46,7 @@ class PermissionCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Role does not exist')
         if Permission.objects.filter(role_id=attrs['role_id'], resource_id=self.context["object"].id).exists():
             raise serializers.ValidationError('Permission already exists, please update them')
+        return attrs
 
     def create(self, validated_data):
         permission = Permission(**validated_data, resource=self.context["object"])

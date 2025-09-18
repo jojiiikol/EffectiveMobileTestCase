@@ -6,15 +6,17 @@ from django.shortcuts import render
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, mixins, generics, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from task.models import User, Resource, Permission
 from task.serializers.permission import PermissionCreateSerializer, PermissionResourceSerializer, \
-    PermissionUpdateSerializer
+    PermissionUpdateSerializer, ResourcePermissionSerializer, PermissionSerializer
 from task.serializers.resource import ResourceSerializer, CreateResourceSerializer
 from task.serializers.User import UserViewSerializer, UserCreateSerializer, UserUpdateSerializer, \
     UserInfoUpdateSerializer
-from task.permissions import Permission as permission_logic, get_user_role
+from task.permissions import Permission as permission_logic, get_user_role, get_user_view_permissions, \
+    get_permission_view_permissions
 
 
 # TODO: Настроить до конца систему permission, протестировать ее
@@ -23,6 +25,9 @@ from task.permissions import Permission as permission_logic, get_user_role
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserViewSerializer
+
+    def get_permissions(self):
+        return get_user_view_permissions(self)
 
     def retrieve(self, request, *args, **kwargs):
         return super(UserViewSet, self).retrieve(request, *args, **kwargs)
@@ -79,9 +84,12 @@ class ResourceViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user_role = get_user_role(self.request)
-        self.queryset = Resource.objects.filter(
-            Q(permissions_resource__role=user_role, permissions_resource__read_access=True) | Q(
-                owner=self.request.user)).distinct()
+        if self.request.user.is_authenticated:
+            self.queryset = Resource.objects.filter(
+                Q(permissions_resource__role=user_role, permissions_resource__read_access=True) | Q(
+                    owner=self.request.user)).distinct()
+        else:
+            self.queryset = Resource.objects.filter(permissions_resource__role=user_role, permissions_resource__read_access=True)
         return super().list(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
@@ -91,6 +99,10 @@ class ResourceViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):
+        resource = self.get_object()
+        if request.user == resource.owner:
+            self.serializer_class = ResourcePermissionSerializer
+
         return super().retrieve(request, *args, **kwargs)
 
     @extend_schema(request=PermissionCreateSerializer)
@@ -105,6 +117,10 @@ class ResourceViewSet(viewsets.ModelViewSet):
 
 class PermissionViewSet(viewsets.ModelViewSet):
     queryset = Permission.objects.all()
+    serializer_class = PermissionSerializer
+
+    def get_permissions(self):
+        return get_permission_view_permissions(self)
 
     def create(self, request, *args, **kwargs):
         self.serializer_class = PermissionCreateSerializer
