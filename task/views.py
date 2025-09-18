@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import Q
 from django.db.models.functions import Trunc
 from django.shortcuts import render
 from drf_spectacular.utils import extend_schema
@@ -8,11 +9,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from task.models import User, Resource, Permission
-from task.serializers.permission import PermissionCreateSerializer, PermissionResourceSerializer
+from task.serializers.permission import PermissionCreateSerializer, PermissionResourceSerializer, \
+    PermissionUpdateSerializer
 from task.serializers.resource import ResourceSerializer, CreateResourceSerializer
 from task.serializers.User import UserViewSerializer, UserCreateSerializer, UserUpdateSerializer, \
     UserInfoUpdateSerializer
-from task.permissions import Permission as permission_logic
+from task.permissions import Permission as permission_logic, get_user_role
+
 
 # TODO: Настроить до конца систему permission, протестировать ее
 # TODO: Разобраться что делать с AnonimysUser
@@ -65,7 +68,6 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
 class ResourceViewSet(viewsets.ModelViewSet):
     queryset = Resource.objects.all()
     serializer_class = ResourceSerializer
@@ -76,6 +78,10 @@ class ResourceViewSet(viewsets.ModelViewSet):
         return super().create(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
+        user_role = get_user_role(self.request)
+        self.queryset = Resource.objects.filter(
+            Q(permissions_resource__role=user_role, permissions_resource__read_access=True) | Q(
+                owner=self.request.user)).distinct()
         return super().list(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
@@ -96,6 +102,7 @@ class ResourceViewSet(viewsets.ModelViewSet):
             return Response(permissions.data)
         return Response(permissions.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class PermissionViewSet(viewsets.ModelViewSet):
     queryset = Permission.objects.all()
 
@@ -107,4 +114,6 @@ class PermissionViewSet(viewsets.ModelViewSet):
         self.serializer_class = PermissionResourceSerializer
         return super().list(request, *args, **kwargs)
 
-
+    def update(self, request, *args, **kwargs):
+        self.serializer_class = PermissionUpdateSerializer
+        return super().update(request, *args, **kwargs)

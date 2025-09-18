@@ -1,11 +1,16 @@
-from task.models import User, Resource
+from task.models import User, Resource, Role
 from task.models import Permission as ModelPermission
 from rest_framework import permissions
 
+def get_user_role(request):
+    role = request.user.role if request.user.is_authenticated else Role.objects.get(name="Guest")
+    return role
 
 def method_to_permission(request, permission: ModelPermission | None, view=None):
     if permission is None:
         return False
+    if request.method == "POST":
+        return request.user.is_authenticated
     if request.method == "GET":
         return permission.read_access
     if request.method == "PUT":
@@ -22,5 +27,6 @@ class Permission(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if obj.owner == request.user:
             return True
-        permission = ModelPermission.objects.filter(role=request.user.role, resource=obj).first()
+        user_role = get_user_role(request=request)
+        permission = ModelPermission.objects.filter(role=user_role, resource=obj).first()
         return method_to_permission(request, permission, view)
